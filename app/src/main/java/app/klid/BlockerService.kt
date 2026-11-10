@@ -120,7 +120,7 @@ class BlockerService : AccessibilityService() {
             lastKick = now
             Prefs.addKick(this)
             performGlobalAction(GLOBAL_ACTION_HOME)
-            Toast.makeText(this, "Klid: TikTok is done for today", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Unreel: TikTok is done for today", Toast.LENGTH_SHORT).show()
         }
         return true
     }

@@ -35,13 +35,13 @@ class MainActivity : Activity() {
     )
 
     private val pauseText =
-        "I am pausing Klid again because I am addicted to scrolling. " +
+        "I am pausing Unreel again because I am addicted to scrolling. " +
             "I have already used all five of my free pauses today. " +
             "I spend a lot of my time on short videos and that time never comes back. " +
             "I know this and I am choosing to keep scrolling anyway."
 
     private val weakenText =
-        "I am weakening Klid because I am addicted to scrolling. " +
+        "I am weakening Unreel because I am addicted to scrolling. " +
             "I spend a lot of my time on short videos and that time never comes back. " +
             "I know this and I am choosing to make it easier to keep scrolling anyway."
 
@@ -96,7 +96,7 @@ class MainActivity : Activity() {
             setPadding(dp(20), dp(28), dp(20), dp(32))
         }
 
-        column.addView(label("Klid", 36f, p.text, bold = true))
+        column.addView(label("Unreel", 36f, p.text, bold = true))
         column.addView(label("Less scrolling. Free for everyone.", 15f, p.sub))
 
         // Status
@@ -191,7 +191,7 @@ class MainActivity : Activity() {
         val color: Int
         if (!on) {
             color = p.danger
-            statusTitle.text = "Klid is off"
+            statusTitle.text = "Unreel is off"
             statusDetail.text = "Nothing is being blocked. If the switch is greyed out: App info, " +
                 "three dots, Allow restricted settings."
         } else if (left > 0) {
@@ -201,7 +201,7 @@ class MainActivity : Activity() {
             statusDetail.text = "Blocking comes back on its own."
         } else {
             color = p.accent
-            statusTitle.text = "Klid is on"
+            statusTitle.text = "Unreel is on"
             statusDetail.text = "Shorts and Reels close themselves."
         }
         (statusCard.background as GradientDrawable).setColor(color)

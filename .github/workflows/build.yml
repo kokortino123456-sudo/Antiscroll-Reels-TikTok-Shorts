@@ -21,13 +21,13 @@ jobs:
         with:
           gradle-version: "8.9"
       - run: gradle assembleDebug --no-daemon
-      - run: cp app/build/outputs/apk/debug/app-debug.apk klid.apk
+      - run: cp app/build/outputs/apk/debug/app-debug.apk unreel.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: klid-apk
-          path: klid.apk
+          name: unreel-apk
+          path: unreel.apk
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Klid build ${{ github.run_number }}
-          files: klid.apk
+          name: Unreel build ${{ github.run_number }}
+          files: unreel.apk

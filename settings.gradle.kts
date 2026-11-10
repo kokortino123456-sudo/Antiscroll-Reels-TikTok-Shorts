@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "Klid"
+rootProject.name = "Unreel"
 include(":app")
