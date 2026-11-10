@@ -13,7 +13,8 @@ no account, and no internet permission, so nothing can leave your phone.
 
 - **Pause for 5 minutes** from the app. The first five pauses a day are free. After that,
   each pause needs a long confession typed out by hand (paste and autocomplete are disabled).
-- Turning a block off, or allowing more TikTok time, needs the same kind of typed text.
+- Turning off Shorts, Reels or TikTok, or allowing more TikTok time, needs the same kind of
+  typed text. The Instagram home feed switch is the exception and turns off with one tap.
   Making Unreel stricter is always one tap.
 - Pauses run on the phone's time-since-boot clock, and daily counters ignore the clock being
   set back, so changing the date in Settings does not buy more pauses.

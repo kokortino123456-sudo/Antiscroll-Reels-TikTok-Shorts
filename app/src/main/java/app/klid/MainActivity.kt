@@ -140,10 +140,10 @@ class MainActivity : Activity() {
             addView(label("Blocked", 17f, p.text, bold = true))
             addView(toggle("YouTube Shorts", Prefs.YOUTUBE))
             addView(toggle("Instagram Reels", Prefs.INSTAGRAM))
-            addView(toggle("Instagram home feed", Prefs.INSTAGRAM_HOME))
+            addView(toggle("Instagram home feed", Prefs.INSTAGRAM_HOME, freeToTurnOff = true))
             addView(toggle("TikTok", Prefs.TIKTOK))
             addView(stepper, spaced(top = 6))
-            addView(label("Turning a block off or allowing more TikTok asks you to type a confession first.",
+            addView(label("Turning off Shorts, Reels or TikTok, or allowing more TikTok, asks you to type a confession first.",
                 13f, p.sub).apply { setPadding(0, dp(12), 0, 0) })
         }, spaced(top = 14))
 
@@ -398,7 +398,7 @@ class MainActivity : Activity() {
         setOnClickListener { onTap() }
     }
 
-    private fun toggle(title: String, key: String): Switch = Switch(this).apply {
+    private fun toggle(title: String, key: String, freeToTurnOff: Boolean = false): Switch = Switch(this).apply {
         text = title
         textSize = 17f
         setTextColor(p.text)
@@ -406,8 +406,8 @@ class MainActivity : Activity() {
         isChecked = Prefs.enabled(this@MainActivity, key)
         setOnCheckedChangeListener { view, checked ->
             if (settingSwitch) return@setOnCheckedChangeListener
-            if (checked) {
-                Prefs.setEnabled(this@MainActivity, key, true)
+            if (checked || freeToTurnOff) {
+                Prefs.setEnabled(this@MainActivity, key, checked)
             } else {
                 // Switching a block off has to be earned: put the switch back, then ask.
                 settingSwitch = true
