@@ -1,0 +1,128 @@
+package app.klid
+
+import android.accessibilityservice.AccessibilityService
+import android.os.Handler
+import android.os.Looper
+import android.os.PowerManager
+import android.os.SystemClock
+import android.view.accessibility.AccessibilityEvent
+import android.widget.Toast
+
+/**
+ * Presses Back when a short-video feed is on screen in YouTube or Instagram,
+ * and sends you Home once TikTok's daily allowance is used up.
+ *
+ * Feeds are recognised by the view ids of their players. Those ids belong to
+ * the other apps and can change when they update; fix them in the lists below.
+ */
+class BlockerService : AccessibilityService() {
+
+    companion object {
+        const val YOUTUBE = "com.google.android.youtube"
+        const val INSTAGRAM = "com.instagram.android"
+        val TIKTOK = setOf("com.zhiliaoapp.musically", "com.ss.android.ugc.trill")
+
+        val YOUTUBE_IDS = listOf(
+            "$YOUTUBE:id/reel_recycler",
+            "$YOUTUBE:id/reel_player_page_container",
+            "$YOUTUBE:id/reel_watch_player",
+        )
+        val INSTAGRAM_IDS = listOf(
+            "$INSTAGRAM:id/clips_viewer_view_pager",
+            "$INSTAGRAM:id/clips_video_container",
+            "$INSTAGRAM:id/clips_viewer_container",
+        )
+
+        private const val CHECK_DELAY_MS = 200L
+        private const val KICK_COOLDOWN_MS = 800L
+        private const val TICK_SEC = 5
+    }
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var checkPending = false
+    private var ticking = false
+    private var lastKick = 0L
+
+    private val check = Runnable {
+        checkPending = false
+        checkFeed()
+    }
+
+    private val tick = object : Runnable {
+        override fun run() {
+            if (!tiktokInFront()) {
+                ticking = false
+                return
+            }
+            Prefs.addTiktokSec(this@BlockerService, TICK_SEC)
+            if (!enforceTiktokLimit()) handler.postDelayed(this, TICK_SEC * 1000L)
+            else ticking = false
+        }
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        val pkg = event?.packageName?.toString() ?: return
+        if (pkg in TIKTOK) {
+            if (!Prefs.enabled(this, Prefs.TIKTOK)) return
+            if (enforceTiktokLimit()) return
+            if (!ticking) {
+                ticking = true
+                handler.postDelayed(tick, TICK_SEC * 1000L)
+            }
+        } else if (pkg == YOUTUBE || pkg == INSTAGRAM) {
+            // Events arrive in bursts; look at the screen at most once per CHECK_DELAY_MS.
+            if (!checkPending) {
+                checkPending = true
+                handler.postDelayed(check, CHECK_DELAY_MS)
+            }
+        }
+    }
+
+    private fun checkFeed() {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastKick < KICK_COOLDOWN_MS) return
+        val root = try { rootInActiveWindow } catch (e: Exception) { null } ?: return
+        val ids = when (root.packageName?.toString()) {
+            YOUTUBE -> if (Prefs.enabled(this, Prefs.YOUTUBE)) YOUTUBE_IDS else return
+            INSTAGRAM -> if (Prefs.enabled(this, Prefs.INSTAGRAM)) INSTAGRAM_IDS else return
+            else -> return
+        }
+        val feedOpen = ids.any { id ->
+            root.findAccessibilityNodeInfosByViewId(id).any { it.isVisibleToUser }
+        }
+        if (feedOpen) {
+            lastKick = now
+            Prefs.addKick(this)
+            performGlobalAction(GLOBAL_ACTION_BACK)
+        }
+    }
+
+    private fun tiktokInFront(): Boolean {
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        if (!pm.isInteractive) return false
+        val pkg = try { rootInActiveWindow?.packageName?.toString() } catch (e: Exception) { null }
+        return pkg in TIKTOK
+    }
+
+    /** Sends the user Home and returns true when today's TikTok allowance is spent. */
+    private fun enforceTiktokLimit(): Boolean {
+        if (!Prefs.enabled(this, Prefs.TIKTOK)) return false
+        val limitSec = Prefs.tiktokLimitMin(this) * 60
+        if (Prefs.tiktokUsedSec(this) < limitSec) return false
+        val now = SystemClock.uptimeMillis()
+        if (now - lastKick >= KICK_COOLDOWN_MS) {
+            lastKick = now
+            Prefs.addKick(this)
+            performGlobalAction(GLOBAL_ACTION_HOME)
+            Toast.makeText(this, "Klid: TikTok is done for today", Toast.LENGTH_SHORT).show()
+        }
+        return true
+    }
+
+    override fun onInterrupt() {}
+
+    override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
+        super.onDestroy()
+    }
+}

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Klid</string>
+    <string name="a11y_desc">Klid watches only YouTube, Instagram and TikTok to notice when a Shorts or Reels feed opens, and presses Back for you. It reads nothing else, stores nothing but your settings, and has no internet access.</string>
+</resources>
