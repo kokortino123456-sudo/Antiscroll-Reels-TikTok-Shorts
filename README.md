@@ -5,6 +5,8 @@ no account, and no internet permission, so nothing can leave your phone.
 
 - **YouTube Shorts** and **Instagram Reels**: Unreel presses Back the moment the feed opens.
   The rest of the app keeps working.
+- **Instagram home feed**: opening it jumps to your messages instead. Search, profiles and
+  posts opened from a link keep working.
 - **TikTok**: a daily allowance in minutes (0 by default). When it is used up, Unreel sends you Home.
 
 ## Pausing and settings

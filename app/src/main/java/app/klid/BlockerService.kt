@@ -6,11 +6,13 @@ import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
 
 /**
  * Presses Back when a short-video feed is on screen in YouTube or Instagram,
- * and sends you Home once TikTok's daily allowance is used up.
+ * moves you from Instagram's home feed to your messages, and sends you Home
+ * once TikTok's daily allowance is used up.
  *
  * Feeds are recognised by the view ids of their players. Those ids belong to
  * the other apps and can change when they update; fix them in the lists below.
@@ -34,6 +36,17 @@ class BlockerService : AccessibilityService() {
             "$INSTAGRAM:id/clips_viewer_view_pager",
             "$INSTAGRAM:id/clips_video_container",
             "$INSTAGRAM:id/clips_viewer_container",
+        )
+
+        // Instagram's bottom bar. The home feed is "Home tab selected, no Back arrow":
+        // posts and profiles opened from a link carry a Back arrow and are left alone.
+        const val INSTAGRAM_HOME_TAB = "$INSTAGRAM:id/feed_tab"
+        const val INSTAGRAM_BACK_ARROW = "$INSTAGRAM:id/action_bar_button_back"
+        /** Where to send the user instead of the home feed, first match wins. */
+        val INSTAGRAM_ESCAPES = listOf(
+            "$INSTAGRAM:id/direct_tab",
+            "$INSTAGRAM:id/action_bar_inbox_button",
+            "$INSTAGRAM:id/profile_tab",
         )
 
         private const val CHECK_DELAY_MS = 200L
@@ -94,32 +107,63 @@ class BlockerService : AccessibilityService() {
         if (now - lastKick < KICK_COOLDOWN_MS) return
         if (Prefs.paused(this)) return
         val root = try { rootInActiveWindow } catch (e: Exception) { null } ?: return
-        val ids = when (root.packageName?.toString()) {
-            YOUTUBE -> if (Prefs.enabled(this, Prefs.YOUTUBE)) YOUTUBE_IDS else return
-            INSTAGRAM -> if (Prefs.enabled(this, Prefs.INSTAGRAM)) INSTAGRAM_IDS else return
+        val pkg = root.packageName?.toString()
+        val feedIds = when (pkg) {
+            YOUTUBE -> if (Prefs.enabled(this, Prefs.YOUTUBE)) YOUTUBE_IDS else emptyList()
+            INSTAGRAM -> if (Prefs.enabled(this, Prefs.INSTAGRAM)) INSTAGRAM_IDS else emptyList()
             else -> return
         }
-        val feedOpen = ids.any { id ->
-            root.findAccessibilityNodeInfosByViewId(id).any { it.isVisibleToUser }
+        if (feedIds.any { visible(root, it).isNotEmpty() }) {
+            kick(now) { performGlobalAction(GLOBAL_ACTION_BACK) }
+            return
         }
-        if (feedOpen) {
-            lastKick = now
-            if (now - streakStart > STREAK_WINDOW_MS) {
-                streakStart = now
-                streak = 0
-            }
-            streak++
-            if (streak == 1) Prefs.addKick(this)
-            // Back normally closes the feed. If it is still open after a few tries
-            // (Back did nothing, or the app reopened it), leave the app instead.
-            performGlobalAction(
-                if (streak >= STREAK_BEFORE_HOME) GLOBAL_ACTION_HOME else GLOBAL_ACTION_BACK
-            )
-            // Look again once the cooldown is over, even if no new event arrives.
-            handler.removeCallbacks(check)
-            checkPending = true
-            handler.postDelayed(check, KICK_COOLDOWN_MS + 100L)
+        if (pkg == INSTAGRAM && Prefs.enabled(this, Prefs.INSTAGRAM_HOME) && onInstagramHome(root)) {
+            val escape = INSTAGRAM_ESCAPES.firstNotNullOfOrNull { visible(root, it).firstOrNull() }
+            // No known tab to escape to means these ids no longer match Instagram; do nothing
+            // rather than throw the user out of the app every time it opens.
+            if (escape != null) kick(now) { click(escape) }
         }
+    }
+
+    private fun visible(root: AccessibilityNodeInfo, id: String): List<AccessibilityNodeInfo> =
+        root.findAccessibilityNodeInfosByViewId(id).filter { it.isVisibleToUser }
+
+    private fun onInstagramHome(root: AccessibilityNodeInfo): Boolean {
+        val tab = visible(root, INSTAGRAM_HOME_TAB).firstOrNull() ?: return false
+        val selected = tab.isSelected ||
+            (0 until tab.childCount).any { tab.getChild(it)?.isSelected == true }
+        return selected && visible(root, INSTAGRAM_BACK_ARROW).isEmpty()
+    }
+
+    /** Clicks the node, or the nearest clickable ancestor. */
+    private fun click(node: AccessibilityNodeInfo): Boolean {
+        var target: AccessibilityNodeInfo? = node
+        for (i in 0 until 4) {
+            val t = target ?: return false
+            if (t.isClickable) return t.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            target = t.parent
+        }
+        return false
+    }
+
+    /**
+     * Runs [action] to get the user out of a feed. If the feed is still there after a
+     * few tries in a row (the action did nothing, or they went straight back), leaves
+     * the app instead.
+     */
+    private fun kick(now: Long, action: () -> Boolean) {
+        lastKick = now
+        if (now - streakStart > STREAK_WINDOW_MS) {
+            streakStart = now
+            streak = 0
+        }
+        streak++
+        if (streak == 1) Prefs.addKick(this)
+        if (streak >= STREAK_BEFORE_HOME || !action()) performGlobalAction(GLOBAL_ACTION_HOME)
+        // Look again once the cooldown is over, even if no new event arrives.
+        handler.removeCallbacks(check)
+        checkPending = true
+        handler.postDelayed(check, KICK_COOLDOWN_MS + 100L)
     }
 
     private fun tiktokInFront(): Boolean {

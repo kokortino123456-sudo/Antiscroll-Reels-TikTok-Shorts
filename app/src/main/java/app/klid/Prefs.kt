@@ -10,6 +10,7 @@ import java.time.LocalDate
 object Prefs {
     const val YOUTUBE = "youtube"
     const val INSTAGRAM = "instagram"
+    const val INSTAGRAM_HOME = "instagram_home"
     const val TIKTOK = "tiktok"
 
     const val PAUSE_MS = 5 * 60 * 1000L

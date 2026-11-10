@@ -140,6 +140,7 @@ class MainActivity : Activity() {
             addView(label("Blocked", 17f, p.text, bold = true))
             addView(toggle("YouTube Shorts", Prefs.YOUTUBE))
             addView(toggle("Instagram Reels", Prefs.INSTAGRAM))
+            addView(toggle("Instagram home feed", Prefs.INSTAGRAM_HOME))
             addView(toggle("TikTok", Prefs.TIKTOK))
             addView(stepper, spaced(top = 6))
             addView(label("Turning a block off or allowing more TikTok asks you to type a confession first.",
@@ -203,7 +204,7 @@ class MainActivity : Activity() {
         } else {
             color = p.accent
             statusTitle.text = "Unreel is on"
-            statusDetail.text = "Shorts and Reels close themselves."
+            statusDetail.text = "Shorts, Reels and the Instagram feed close themselves."
         }
         (statusCard.background as GradientDrawable).setColor(color)
         enableButton.visibility = if (on) View.GONE else View.VISIBLE
