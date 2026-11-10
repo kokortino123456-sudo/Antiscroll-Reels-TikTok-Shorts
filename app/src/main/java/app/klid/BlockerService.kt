@@ -20,7 +20,10 @@ class BlockerService : AccessibilityService() {
     companion object {
         const val YOUTUBE = "com.google.android.youtube"
         const val INSTAGRAM = "com.instagram.android"
-        val TIKTOK = setOf("com.zhiliaoapp.musically", "com.ss.android.ugc.trill")
+        val TIKTOK = setOf(
+            "com.zhiliaoapp.musically", "com.ss.android.ugc.trill",
+            "com.zhiliaoapp.musically.go", "com.ss.android.ugc.trill.go", // TikTok Lite
+        )
 
         val YOUTUBE_IDS = listOf(
             "$YOUTUBE:id/reel_recycler",
@@ -36,6 +39,8 @@ class BlockerService : AccessibilityService() {
         private const val CHECK_DELAY_MS = 200L
         private const val KICK_COOLDOWN_MS = 800L
         private const val TICK_SEC = 5
+        private const val STREAK_WINDOW_MS = 6000L
+        private const val STREAK_BEFORE_HOME = 3
 
         /** The running service, so the settings screen can tell it a pause started. */
         @Volatile
@@ -46,6 +51,8 @@ class BlockerService : AccessibilityService() {
     private var checkPending = false
     private var ticking = false
     private var lastKick = 0L
+    private var streakStart = 0L
+    private var streak = 0
 
     private val check = Runnable {
         checkPending = false
@@ -97,8 +104,21 @@ class BlockerService : AccessibilityService() {
         }
         if (feedOpen) {
             lastKick = now
-            Prefs.addKick(this)
-            performGlobalAction(GLOBAL_ACTION_BACK)
+            if (now - streakStart > STREAK_WINDOW_MS) {
+                streakStart = now
+                streak = 0
+            }
+            streak++
+            if (streak == 1) Prefs.addKick(this)
+            // Back normally closes the feed. If it is still open after a few tries
+            // (Back did nothing, or the app reopened it), leave the app instead.
+            performGlobalAction(
+                if (streak >= STREAK_BEFORE_HOME) GLOBAL_ACTION_HOME else GLOBAL_ACTION_BACK
+            )
+            // Look again once the cooldown is over, even if no new event arrives.
+            handler.removeCallbacks(check)
+            checkPending = true
+            handler.postDelayed(check, KICK_COOLDOWN_MS + 100L)
         }
     }
 
@@ -125,7 +145,7 @@ class BlockerService : AccessibilityService() {
         return true
     }
 
-    /** Look at the screen again right after the pause runs out, even if nothing moves. */
+    /** Look at the screen again once the pause is over (or now, if it was ended early). */
     fun recheckAfterPause() {
         handler.postDelayed({
             checkFeed()

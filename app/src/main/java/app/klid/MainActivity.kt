@@ -88,7 +88,8 @@ class MainActivity : Activity() {
         window.navigationBarColor = p.bg
         if (!night) {
             @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            window.decorView.systemUiVisibility =
+                View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         }
 
         val column = LinearLayout(this).apply {
@@ -228,6 +229,7 @@ class MainActivity : Activity() {
     private fun onPauseTapped() {
         if (Prefs.paused(this)) {
             Prefs.endPause(this)
+            BlockerService.instance?.recheckAfterPause()
             render()
             return
         }

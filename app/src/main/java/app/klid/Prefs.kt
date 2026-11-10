@@ -3,6 +3,7 @@ package app.klid
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.SystemClock
+import android.provider.Settings
 import java.time.LocalDate
 
 /** All state lives in one local SharedPreferences file. Nothing leaves the device. */
@@ -23,6 +24,7 @@ object Prefs {
     private const val PAUSES_DAY = "pauses_day"
     private const val PAUSES = "pauses"
     private const val PAUSE_END = "pause_end_elapsed"
+    private const val PAUSE_BOOT = "pause_boot"
 
     private fun sp(c: Context): SharedPreferences =
         c.getSharedPreferences("klid", Context.MODE_PRIVATE)
@@ -61,9 +63,14 @@ object Prefs {
 
     fun pausesToday(c: Context): Int = dayCount(c, PAUSES_DAY, PAUSES)
 
+    private fun bootCount(c: Context): Int =
+        Settings.Global.getInt(c.contentResolver, Settings.Global.BOOT_COUNT, 0)
+
     // The pause end is kept on the time-since-boot clock, which the user cannot
-    // change in Settings. After a reboot that clock restarts and the pause is over.
+    // change in Settings. That clock restarts on reboot, so a pause only counts
+    // during the boot it was started in.
     fun pauseRemainingMs(c: Context): Long {
+        if (sp(c).getInt(PAUSE_BOOT, -1) != bootCount(c)) return 0L
         val left = sp(c).getLong(PAUSE_END, 0L) - SystemClock.elapsedRealtime()
         return if (left in 1..PAUSE_MS) left else 0L
     }
@@ -71,7 +78,10 @@ object Prefs {
     fun paused(c: Context): Boolean = pauseRemainingMs(c) > 0L
 
     fun startPause(c: Context) {
-        sp(c).edit().putLong(PAUSE_END, SystemClock.elapsedRealtime() + PAUSE_MS).apply()
+        sp(c).edit()
+            .putLong(PAUSE_END, SystemClock.elapsedRealtime() + PAUSE_MS)
+            .putInt(PAUSE_BOOT, bootCount(c))
+            .apply()
         dayAdd(c, PAUSES_DAY, PAUSES, 1)
     }
 
