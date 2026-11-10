@@ -7,6 +7,17 @@ no account, and no internet permission, so nothing can leave your phone.
   The rest of the app keeps working.
 - **TikTok**: a daily allowance in minutes (0 by default). When it is used up, Klid sends you Home.
 
+## Pausing and settings
+
+- **Pause for 5 minutes** from the app. The first five pauses a day are free. After that,
+  each pause needs a long confession typed out by hand (paste and autocomplete are disabled).
+- Turning a block off, or allowing more TikTok time, needs the same kind of typed text.
+  Making Klid stricter is always one tap.
+- Pauses run on the phone's time-since-boot clock, and daily counters ignore the clock being
+  set back, so changing the date in Settings does not buy more pauses.
+- Klid cannot stop you from switching it off in Accessibility settings or uninstalling it.
+  Android does not let an ordinary app prevent that.
+
 ## Install
 
 1. Open the newest entry under **Releases** on your phone and download `klid.apk`.

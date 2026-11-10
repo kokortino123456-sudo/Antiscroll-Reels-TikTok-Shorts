@@ -36,6 +36,10 @@ class BlockerService : AccessibilityService() {
         private const val CHECK_DELAY_MS = 200L
         private const val KICK_COOLDOWN_MS = 800L
         private const val TICK_SEC = 5
+
+        /** The running service, so the settings screen can tell it a pause started. */
+        @Volatile
+        var instance: BlockerService? = null
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -54,7 +58,7 @@ class BlockerService : AccessibilityService() {
                 ticking = false
                 return
             }
-            Prefs.addTiktokSec(this@BlockerService, TICK_SEC)
+            if (!Prefs.paused(this@BlockerService)) Prefs.addTiktokSec(this@BlockerService, TICK_SEC)
             if (!enforceTiktokLimit()) handler.postDelayed(this, TICK_SEC * 1000L)
             else ticking = false
         }
@@ -81,6 +85,7 @@ class BlockerService : AccessibilityService() {
     private fun checkFeed() {
         val now = SystemClock.uptimeMillis()
         if (now - lastKick < KICK_COOLDOWN_MS) return
+        if (Prefs.paused(this)) return
         val root = try { rootInActiveWindow } catch (e: Exception) { null } ?: return
         val ids = when (root.packageName?.toString()) {
             YOUTUBE -> if (Prefs.enabled(this, Prefs.YOUTUBE)) YOUTUBE_IDS else return
@@ -107,6 +112,7 @@ class BlockerService : AccessibilityService() {
     /** Sends the user Home and returns true when today's TikTok allowance is spent. */
     private fun enforceTiktokLimit(): Boolean {
         if (!Prefs.enabled(this, Prefs.TIKTOK)) return false
+        if (Prefs.paused(this)) return false
         val limitSec = Prefs.tiktokLimitMin(this) * 60
         if (Prefs.tiktokUsedSec(this) < limitSec) return false
         val now = SystemClock.uptimeMillis()
@@ -119,9 +125,23 @@ class BlockerService : AccessibilityService() {
         return true
     }
 
+    /** Look at the screen again right after the pause runs out, even if nothing moves. */
+    fun recheckAfterPause() {
+        handler.postDelayed({
+            checkFeed()
+            if (tiktokInFront()) enforceTiktokLimit()
+        }, Prefs.pauseRemainingMs(this) + 500L)
+    }
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        instance = this
+    }
+
     override fun onInterrupt() {}
 
     override fun onDestroy() {
+        instance = null
         handler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
