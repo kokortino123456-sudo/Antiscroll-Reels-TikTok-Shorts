@@ -101,7 +101,7 @@ class BlockerService : AccessibilityService() {
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         if (!pm.isInteractive) return false
         val pkg = try { rootInActiveWindow?.packageName?.toString() } catch (e: Exception) { null }
-        return pkg in TIKTOK
+        return pkg != null && pkg in TIKTOK
     }
 
     /** Sends the user Home and returns true when today's TikTok allowance is spent. */
