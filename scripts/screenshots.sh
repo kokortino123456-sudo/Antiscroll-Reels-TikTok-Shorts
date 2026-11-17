@@ -14,7 +14,9 @@ adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
 
 shot() { sleep 2; adb exec-out screencap -p > "$OUT/$1.png"; echo "captured $1"; }
-launch() { adb shell am force-stop "$PKG"; adb shell am start -W -n "$PKG/.MainActivity" > /dev/null; sleep 2; }
+# Restarts the screen without force-stopping the app: Android disables an app's
+# accessibility service when the app is force-stopped.
+launch() { adb shell am start -W -f 0x10008000 -n "$PKG/.MainActivity" > /dev/null; sleep 2; }
 service_on() {
   adb shell settings put secure enabled_accessibility_services "$SERVICE"
   adb shell settings put secure accessibility_enabled 1
@@ -44,6 +46,7 @@ for mode in light dark; do
   shot "$mode-1-off"
 
   service_on
+  sleep 3
   launch
   shot "$mode-2-on"
   scroll_down
