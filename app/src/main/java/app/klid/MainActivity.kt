@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.RippleDrawable
 import android.os.Build
 import android.os.Bundle
@@ -371,8 +372,14 @@ class MainActivity : Activity() {
             .setNegativeButton("Never mind", null)
             .setPositiveButton("Continue", null)
             .create()
+        // Match the cards: same surface colour, radius and border instead of the platform default.
+        dialog.window?.setBackgroundDrawable(
+            InsetDrawable(rounded(surface, Radius.CARD, bordered = true), dp(Space.L))
+        )
         dialog.setOnShowListener {
             val ok = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).isAllCaps = false
+            ok.isAllCaps = false
             ok.isEnabled = false
             ok.setOnClickListener {
                 if (normalize(input.text.toString()) == wanted) {
