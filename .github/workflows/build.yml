@@ -60,10 +60,14 @@ jobs:
         with:
           name: screenshots
           path: screenshots
+      - name: Replace the previous screenshots release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete screenshots --yes --cleanup-tag || true
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: screenshots
           name: Screenshots (latest)
           prerelease: true
           make_latest: false
-          files: screenshots/*.png
+          files: screenshots/*

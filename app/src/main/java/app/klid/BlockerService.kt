@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
@@ -52,6 +53,7 @@ class BlockerService : AccessibilityService() {
         private const val CHECK_DELAY_MS = 200L
         private const val KICK_COOLDOWN_MS = 800L
         private const val TICK_SEC = 5
+        private const val TAG = "Unreel"
         private const val STREAK_WINDOW_MS = 6000L
         private const val STREAK_BEFORE_HOME = 3
 
@@ -78,7 +80,8 @@ class BlockerService : AccessibilityService() {
                 ticking = false
                 return
             }
-            if (!Prefs.paused(this@BlockerService)) Prefs.addTiktokSec(this@BlockerService, TICK_SEC)
+            // Counted even while paused or with the limit off: the daily total stays honest.
+            Prefs.addTiktokSec(this@BlockerService, TICK_SEC)
             if (!enforceTiktokLimit()) handler.postDelayed(this, TICK_SEC * 1000L)
             else ticking = false
         }
@@ -87,7 +90,6 @@ class BlockerService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val pkg = event?.packageName?.toString() ?: return
         if (pkg in TIKTOK) {
-            if (!Prefs.enabled(this, Prefs.TIKTOK)) return
             if (enforceTiktokLimit()) return
             if (!ticking) {
                 ticking = true
@@ -114,14 +116,15 @@ class BlockerService : AccessibilityService() {
             else -> return
         }
         if (feedIds.any { visible(root, it).isNotEmpty() }) {
-            kick(now) { performGlobalAction(GLOBAL_ACTION_BACK) }
+            val feature = if (pkg == YOUTUBE) Prefs.F_YT_SHORTS else Prefs.F_IG_REELS
+            kick(now, feature) { performGlobalAction(GLOBAL_ACTION_BACK) }
             return
         }
         if (pkg == INSTAGRAM && Prefs.enabled(this, Prefs.INSTAGRAM_HOME) && onInstagramHome(root)) {
             val escape = INSTAGRAM_ESCAPES.firstNotNullOfOrNull { visible(root, it).firstOrNull() }
             // No known tab to escape to means these ids no longer match Instagram; do nothing
             // rather than throw the user out of the app every time it opens.
-            if (escape != null) kick(now) { click(escape) }
+            if (escape != null) kick(now, Prefs.F_IG_HOME) { click(escape) }
         }
     }
 
@@ -151,14 +154,17 @@ class BlockerService : AccessibilityService() {
      * few tries in a row (the action did nothing, or they went straight back), leaves
      * the app instead.
      */
-    private fun kick(now: Long, action: () -> Boolean) {
+    private fun kick(now: Long, feature: String, action: () -> Boolean) {
         lastKick = now
         if (now - streakStart > STREAK_WINDOW_MS) {
             streakStart = now
             streak = 0
         }
         streak++
-        if (streak == 1) Prefs.addKick(this)
+        if (streak == 1) {
+            Prefs.addCount(this, feature)
+            Log.i(TAG, "Pulled out of $feature")
+        }
         if (streak >= STREAK_BEFORE_HOME || !action()) performGlobalAction(GLOBAL_ACTION_HOME)
         // Look again once the cooldown is over, even if no new event arrives.
         handler.removeCallbacks(check)
@@ -181,9 +187,7 @@ class BlockerService : AccessibilityService() {
         if (Prefs.tiktokUsedSec(this) < limitSec) return false
         val now = SystemClock.uptimeMillis()
         if (now - lastKick >= KICK_COOLDOWN_MS) {
-            lastKick = now
-            Prefs.addKick(this)
-            performGlobalAction(GLOBAL_ACTION_HOME)
+            kick(now, Prefs.F_TT_HOME) { performGlobalAction(GLOBAL_ACTION_HOME) }
             Toast.makeText(this, "Unreel: TikTok is done for today", Toast.LENGTH_SHORT).show()
         }
         return true

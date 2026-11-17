@@ -9,6 +9,18 @@ no account, and no internet permission, so nothing can leave your phone.
   posts opened from a link keep working.
 - **TikTok**: a daily allowance in minutes (0 by default). When it is used up, Unreel sends you Home.
 
+## The settings screen
+
+The status card at the top shows whether Unreel is on, and holds the 5-minute pause. Below it
+there is one tab per app:
+
+- **YouTube**: the Shorts switch, how often Shorts were closed today, and a 7-day chart.
+- **Instagram**: Reels and home feed switches, with today's counts and a 7-day chart.
+- **TikTok**: the daily limit, minutes per day, today's usage against the limit, and a
+  7-day chart of minutes. TikTok time is always counted, including during a pause.
+
+Each tab says so when that app isn't installed. History is kept on the phone for 35 days.
+
 ## Pausing and settings
 
 - **Pause for 5 minutes** from the app. The first five pauses a day are free. After that,

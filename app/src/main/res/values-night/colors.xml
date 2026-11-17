@@ -3,6 +3,7 @@
     <color name="background">#121413</color>
     <color name="surface">#1E2220</color>           <!-- lighter than the page: depth without shadows -->
     <color name="border">#14FFFFFF</color>
+    <color name="track">#33000000</color>
     <color name="text">#ECEAE4</color>
     <color name="text_secondary">#9A9C97</color>
     <color name="accent">#4FB39A</color>

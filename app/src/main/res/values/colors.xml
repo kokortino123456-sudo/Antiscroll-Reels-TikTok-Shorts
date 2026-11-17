@@ -4,8 +4,9 @@
     <color name="background">#F4F1EA</color>
     <color name="surface">#FFFFFF</color>
     <color name="border">#14000000</color>          <!-- 8% black: works on any surface -->
+    <color name="track">#0F000000</color>           <!-- recessed tab bar and progress track -->
     <color name="text">#1C1B1A</color>
-    <color name="text_secondary">#6B6862</color>    <!-- 5.5:1 on surface -->
+    <color name="text_secondary">#5F5C57</color>    <!-- 5.2:1 on the tab track, 6.7:1 on surface -->
     <color name="accent">#1F6F5C</color>
     <color name="status_on">#1F6F5C</color>
     <color name="status_paused">#8F5B0A</color>     <!-- 5.7:1 with white; was 3.6:1 -->
