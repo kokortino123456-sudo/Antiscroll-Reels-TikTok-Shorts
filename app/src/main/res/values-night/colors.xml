@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#121413</color>
+    <color name="surface">#1E2220</color>           <!-- lighter than the page: depth without shadows -->
+    <color name="border">#14FFFFFF</color>
+    <color name="text">#ECEAE4</color>
+    <color name="text_secondary">#9A9C97</color>
+    <color name="accent">#4FB39A</color>
+    <color name="status_on">#4FB39A</color>
+    <color name="status_paused">#E0A84A</color>
+    <color name="status_off">#E26D5C</color>
+    <color name="on_status">#0E1513</color>
+</resources>

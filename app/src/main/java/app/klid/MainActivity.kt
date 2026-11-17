@@ -3,10 +3,14 @@ package app.klid
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -22,17 +26,40 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 
-class MainActivity : Activity() {
+/** Spacing, radius and type tokens. Colours live in res/values*/colors.xml. */
+private object Space {
+    const val XS = 4
+    const val S = 8
+    const val M = 12
+    const val L = 16
+    const val XL = 24
+    const val XXL = 32
+}
 
-    private class Palette(
-        val bg: Int, val card: Int, val text: Int, val sub: Int,
-        val accent: Int, val warn: Int, val danger: Int, val onAccent: Int
-    )
+private object Radius {
+    const val CARD = 28
+    const val CARD_PAD = 16
+    /** Controls inside a card: card radius minus card padding, so the corners are concentric. */
+    const val CONTROL = CARD - CARD_PAD
+}
+
+private object Type {
+    const val TITLE = 34f
+    const val STATUS = 22f
+    const val SECTION = 17f
+    const val BODY = 16f
+    const val SMALL = 14f
+    const val CAPTION = 13f
+    const val STAT = 30f
+}
+
+class MainActivity : Activity() {
 
     private val pauseText =
         "I am pausing Unreel again because I am addicted to scrolling. " +
@@ -46,18 +73,26 @@ class MainActivity : Activity() {
             "I know this and I am choosing to make it easier to keep scrolling anyway."
 
     private val handler = Handler(Looper.getMainLooper())
-    private lateinit var p: Palette
+
+    private var bg = 0
+    private var surface = 0
+    private var border = 0
+    private var ink = 0
+    private var sub = 0
+    private var accent = 0
+    private var onStatus = 0
 
     private lateinit var statusCard: LinearLayout
     private lateinit var statusTitle: TextView
     private lateinit var statusDetail: TextView
-    private lateinit var enableButton: Button
-    private lateinit var pauseButton: Button
-    private lateinit var pauseCaption: TextView
+    private lateinit var statusButton: Button
+    private lateinit var statusCaption: TextView
+    private lateinit var minusButton: Button
     private lateinit var limitValue: TextView
     private lateinit var statKicks: TextView
     private lateinit var statTiktok: TextView
     private var settingSwitch = false
+    private var shownStatusColor = 0
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -70,22 +105,18 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        bg = getColor(R.color.background)
+        surface = getColor(R.color.surface)
+        border = getColor(R.color.border)
+        ink = getColor(R.color.text)
+        sub = getColor(R.color.text_secondary)
+        accent = getColor(R.color.accent)
+        onStatus = getColor(R.color.on_status)
 
         val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
-        p = if (night) Palette(
-            bg = Color.parseColor("#121413"), card = Color.parseColor("#1E2220"),
-            text = Color.parseColor("#ECEAE4"), sub = Color.parseColor("#9A9C97"),
-            accent = Color.parseColor("#4FB39A"), warn = Color.parseColor("#E0A84A"),
-            danger = Color.parseColor("#E26D5C"), onAccent = Color.parseColor("#0E1513")
-        ) else Palette(
-            bg = Color.parseColor("#F4F1EA"), card = Color.parseColor("#FFFFFF"),
-            text = Color.parseColor("#1C1B1A"), sub = Color.parseColor("#6B6862"),
-            accent = Color.parseColor("#1F6F5C"), warn = Color.parseColor("#B7791F"),
-            danger = Color.parseColor("#B03A2E"), onAccent = Color.parseColor("#FFFFFF")
-        )
-        window.statusBarColor = p.bg
-        window.navigationBarColor = p.bg
+        window.statusBarColor = bg
+        window.navigationBarColor = bg
         if (!night) {
             @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility =
@@ -94,87 +125,98 @@ class MainActivity : Activity() {
 
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(28), dp(20), dp(32))
+            setPadding(dp(Space.L), dp(Space.XL), dp(Space.L), dp(Space.XXL))
         }
 
-        column.addView(label("Unreel", 36f, p.text, bold = true))
-        column.addView(label("Less scrolling. Free for everyone.", 15f, p.sub))
+        column.addView(label("Unreel", Type.TITLE, ink, bold = true).apply {
+            letterSpacing = -0.02f
+            heading()
+        })
+        column.addView(label("Less scrolling. Free for everyone.", Type.BODY, sub))
 
-        // Status
-        statusTitle = label("", 22f, p.onAccent, bold = true)
-        statusDetail = label("", 14f, p.onAccent).apply { setPadding(0, dp(4), 0, 0) }
-        enableButton = pill("Turn on in Accessibility settings", p.onAccent, p.danger).apply {
-            setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        // Status, with the one action that matters right now.
+        statusTitle = label("", Type.STATUS, onStatus, bold = true).apply { tabular() }
+        statusDetail = label("", Type.SMALL, onStatus).apply { setPadding(0, dp(Space.XS), 0, 0) }
+        statusButton = button("").apply { setOnClickListener { onStatusButton() } }
+        statusCaption = label("", Type.CAPTION, onStatus).apply {
+            setPadding(0, dp(Space.S), 0, 0)
+            tabular()
         }
-        statusCard = card(p.accent).apply {
+        statusCard = card(0, bordered = false).apply {
             addView(statusTitle)
             addView(statusDetail)
-            addView(enableButton, spaced(top = 14))
+            addView(statusButton, spaced(top = Space.L))
+            addView(statusCaption)
         }
-        column.addView(statusCard, spaced(top = 22))
+        column.addView(statusCard, spaced(top = Space.XL))
 
-        // Pause
-        pauseButton = pill("", p.accent, p.onAccent).apply { setOnClickListener { onPauseTapped() } }
-        pauseCaption = label("", 13f, p.sub).apply { setPadding(0, dp(10), 0, 0) }
-        column.addView(card(p.card).apply {
-            addView(label("Need a break from the block?", 17f, p.text, bold = true))
-            addView(pauseButton, spaced(top = 12))
-            addView(pauseCaption)
-        }, spaced(top = 14))
-
-        // Blocks
-        limitValue = label("", 17f, p.text, bold = true).apply {
+        // What gets blocked
+        minusButton = stepButton("−", "Fewer TikTok minutes") { changeLimit(-Prefs.LIMIT_STEP_MIN) }
+        limitValue = label("", Type.SECTION, ink, bold = true).apply {
             gravity = Gravity.CENTER
             minWidth = dp(72)
+            tabular()
         }
         val stepper = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            addView(label("TikTok minutes per day", 15f, p.sub),
+            addView(label("TikTok minutes per day", Type.BODY, ink),
                 LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(round("−") { changeLimit(-Prefs.LIMIT_STEP_MIN) })
+            addView(minusButton)
             addView(limitValue)
-            addView(round("+") { changeLimit(Prefs.LIMIT_STEP_MIN) })
+            addView(stepButton("+", "More TikTok minutes") { changeLimit(Prefs.LIMIT_STEP_MIN) })
         }
-        column.addView(card(p.card).apply {
-            addView(label("Blocked", 17f, p.text, bold = true))
+        column.addView(card(surface).apply {
+            addView(label("Blocked", Type.SECTION, ink, bold = true).apply { heading() })
             addView(toggle("YouTube Shorts", Prefs.YOUTUBE))
             addView(toggle("Instagram Reels", Prefs.INSTAGRAM))
             addView(toggle("Instagram home feed", Prefs.INSTAGRAM_HOME, freeToTurnOff = true))
             addView(toggle("TikTok", Prefs.TIKTOK))
-            addView(stepper, spaced(top = 6))
-            addView(label("Turning off Shorts, Reels or TikTok, or allowing more TikTok, asks you to type a confession first.",
-                13f, p.sub).apply { setPadding(0, dp(12), 0, 0) })
-        }, spaced(top = 14))
+            addView(stepper, spaced(top = Space.S))
+            addView(label(
+                "Turning off Shorts, Reels or TikTok, or allowing more TikTok, asks you to type a confession first.",
+                Type.CAPTION, sub
+            ).apply { setPadding(0, dp(Space.M), 0, 0) })
+        }, spaced(top = Space.L))
 
-        // Today
-        statKicks = label("0", 30f, p.accent, bold = true)
-        statTiktok = label("0", 30f, p.accent, bold = true)
-        val tiles = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        tiles.addView(card(p.card).apply {
-            addView(statKicks)
-            addView(label("times pulled out today", 13f, p.sub))
-        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-            rightMargin = dp(7)
-        })
-        tiles.addView(card(p.card).apply {
-            addView(statTiktok)
-            addView(label("TikTok minutes today", 13f, p.sub))
-        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-            leftMargin = dp(7)
-        })
-        column.addView(tiles, spaced(top = 14))
+        // Today, as one card with two numbers.
+        statKicks = label("0", Type.STAT, accent, bold = true).apply { tabular() }
+        statTiktok = label("0", Type.STAT, accent, bold = true).apply { tabular() }
+        fun stat(number: TextView, caption: String) = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(number)
+            addView(label(caption, Type.CAPTION, sub))
+        }
+        column.addView(card(surface).apply {
+            addView(label("Today", Type.SECTION, ink, bold = true).apply { heading() })
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                addView(stat(statKicks, "times pulled out"),
+                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                addView(stat(statTiktok, "TikTok minutes"),
+                    LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            }, spaced(top = Space.S))
+        }, spaced(top = Space.L))
 
         column.addView(label(
             "No ads, no account, no internet access. Everything stays on this phone.",
-            13f, p.sub
-        ).apply { gravity = Gravity.CENTER }, spaced(top = 22))
+            Type.CAPTION, sub
+        ).apply { gravity = Gravity.CENTER }, spaced(top = Space.XL))
 
+        // Keep a readable width on tablets and in landscape.
+        val maxWidth = dp(560)
+        val width = if (resources.displayMetrics.widthPixels > maxWidth) maxWidth
+        else FrameLayout.LayoutParams.MATCH_PARENT
         setContentView(ScrollView(this).apply {
-            setBackgroundColor(p.bg)
+            setBackgroundColor(bg)
             isFillViewport = true
-            addView(column)
+            addView(FrameLayout(this@MainActivity).apply {
+                addView(column, FrameLayout.LayoutParams(
+                    width, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL
+                ))
+            })
         })
+        render()
     }
 
     override fun onResume() {
@@ -190,41 +232,59 @@ class MainActivity : Activity() {
     private fun render() {
         val on = serviceEnabled()
         val left = Prefs.pauseRemainingMs(this)
-        val color: Int
-        if (!on) {
-            color = p.danger
-            statusTitle.text = "Unreel is off"
-            statusDetail.text = "Nothing is being blocked. If the switch is greyed out: App info, " +
-                "three dots, Allow restricted settings."
-        } else if (left > 0) {
-            color = p.warn
-            val sec = (left + 999) / 1000
-            statusTitle.text = "Paused  %d:%02d".format(sec / 60, sec % 60)
-            statusDetail.text = "Blocking comes back on its own."
-        } else {
-            color = p.accent
-            statusTitle.text = "Unreel is on"
-            statusDetail.text = "Shorts, Reels and the Instagram feed close themselves."
-        }
-        (statusCard.background as GradientDrawable).setColor(color)
-        enableButton.visibility = if (on) View.GONE else View.VISIBLE
-
         val used = Prefs.pausesToday(this)
-        if (left > 0) {
-            pauseButton.text = "End pause now"
-        } else {
-            pauseButton.text = "Pause for 5 minutes"
+        val color: Int
+        when {
+            !on -> {
+                color = getColor(R.color.status_off)
+                statusTitle.text = "Unreel is off"
+                statusDetail.text = "Nothing is being blocked. If the switch is greyed out: " +
+                    "App info, three dots, Allow restricted settings."
+                statusButton.text = "Turn on in Accessibility settings"
+                statusCaption.visibility = View.GONE
+            }
+            left > 0 -> {
+                color = getColor(R.color.status_paused)
+                val sec = (left + 999) / 1000
+                statusTitle.text = "Paused for %d:%02d".format(sec / 60, sec % 60)
+                statusDetail.text = "Blocking comes back on its own."
+                statusButton.text = "End pause now"
+                statusCaption.visibility = View.VISIBLE
+            }
+            else -> {
+                color = getColor(R.color.status_on)
+                statusTitle.text = "Unreel is on"
+                statusDetail.text = "Shorts, Reels and the Instagram feed close themselves."
+                statusButton.text = "Pause for 5 minutes"
+                statusCaption.visibility = View.VISIBLE
+            }
         }
-        pauseCaption.text = if (used < Prefs.FREE_PAUSES) {
-            "$used of ${Prefs.FREE_PAUSES} free pauses used today."
+        statusCaption.text = if (used < Prefs.FREE_PAUSES) {
+            "$used of ${Prefs.FREE_PAUSES} free pauses used today"
         } else {
-            "$used pauses today. Every further pause has to be typed for."
+            "$used pauses today. Each further pause has to be typed for."
+        }
+        if (color != shownStatusColor) {
+            shownStatusColor = color
+            (statusCard.background as GradientDrawable).setColor(color)
+            statusButton.background = pressable(onStatus, Radius.CONTROL, color, bordered = false)
+            statusButton.setTextColor(color)
         }
 
         val limit = Prefs.tiktokLimitMin(this)
         limitValue.text = if (limit == 0) "none" else "$limit min"
+        minusButton.isEnabled = limit > 0
+        minusButton.alpha = if (limit > 0) 1f else 0.38f
         statKicks.text = Prefs.kicksToday(this).toString()
         statTiktok.text = (Prefs.tiktokUsedSec(this) / 60).toString()
+    }
+
+    private fun onStatusButton() {
+        if (!serviceEnabled()) {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        } else {
+            onPauseTapped()
+        }
     }
 
     private fun onPauseTapped() {
@@ -272,7 +332,7 @@ class MainActivity : Activity() {
     /** Shows [target] and runs [onPass] only after it has been typed out by hand. */
     private fun challenge(target: String, onPass: () -> Unit) {
         val wanted = normalize(target)
-        val progress = label("0 / ${wanted.length}", 13f, p.sub)
+        val progress = label("0 / ${wanted.length}", Type.CAPTION, sub).apply { tabular() }
         val input = EditText(this).apply {
             // Visible-password mode switches off suggestions, autocorrect and swipe typing.
             inputType = InputType.TYPE_CLASS_TEXT or
@@ -295,14 +355,14 @@ class MainActivity : Activity() {
         }
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(12), dp(24), 0)
+            setPadding(dp(Space.XL), dp(Space.M), dp(Space.XL), 0)
             addView(TextView(this@MainActivity).apply {
                 text = target
-                textSize = 16f
+                textSize = Type.BODY
                 setTypeface(typeface, Typeface.BOLD)
                 setTextIsSelectable(false)
             })
-            addView(input, spaced(top = 12))
+            addView(input, spaced(top = Space.M))
             addView(progress)
         }
         val dialog = AlertDialog.Builder(this)
@@ -352,16 +412,28 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { topMargin = dp(top) }
 
-    private fun rounded(color: Int, radius: Int): GradientDrawable =
+    private fun rounded(color: Int, radius: Int, bordered: Boolean): GradientDrawable =
         GradientDrawable().apply {
             setColor(color)
             cornerRadius = dp(radius).toFloat()
+            if (bordered) setStroke(dp(1).coerceAtLeast(1), border)
         }
 
-    private fun card(color: Int): LinearLayout = LinearLayout(this).apply {
+    /** A rounded fill that shows a ripple when pressed or focused. */
+    private fun pressable(fill: Int, radius: Int, rippleBase: Int, bordered: Boolean): Drawable {
+        val ripple = Color.argb(51, Color.red(rippleBase), Color.green(rippleBase), Color.blue(rippleBase))
+        return RippleDrawable(
+            ColorStateList.valueOf(ripple),
+            rounded(fill, radius, bordered),
+            rounded(Color.WHITE, radius, false)
+        )
+    }
+
+    private fun card(color: Int, bordered: Boolean = true): LinearLayout = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        background = rounded(color, 22)
-        setPadding(dp(20), dp(18), dp(20), dp(18))
+        background = rounded(color, Radius.CARD, bordered)
+        val pad = dp(Radius.CARD_PAD)
+        setPadding(pad, pad, pad, pad)
     }
 
     private fun label(value: String, size: Float, color: Int, bold: Boolean = false): TextView =
@@ -372,37 +444,46 @@ class MainActivity : Activity() {
             if (bold) setTypeface(typeface, Typeface.BOLD)
         }
 
-    private fun pill(value: String, fill: Int, textColor: Int): Button = Button(this).apply {
+    private fun TextView.tabular() {
+        fontFeatureSettings = "tnum"
+    }
+
+    private fun View.heading() {
+        if (Build.VERSION.SDK_INT >= 28) isAccessibilityHeading = true
+    }
+
+    private fun button(value: String): Button = Button(this).apply {
         text = value
-        textSize = 16f
+        textSize = Type.BODY
         isAllCaps = false
-        setTextColor(textColor)
         setTypeface(typeface, Typeface.BOLD)
-        background = rounded(fill, 28)
         stateListAnimator = null
         minHeight = dp(52)
     }
 
-    private fun round(value: String, onTap: () -> Unit): Button = Button(this).apply {
-        text = value
-        textSize = 20f
-        setTextColor(p.text)
-        background = rounded(p.bg, 22)
-        stateListAnimator = null
-        minWidth = 0
-        minimumWidth = 0
-        minHeight = 0
-        minimumHeight = 0
-        setPadding(0, 0, 0, 0)
-        layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
-        setOnClickListener { onTap() }
-    }
+    private fun stepButton(value: String, description: String, onTap: () -> Unit): Button =
+        Button(this).apply {
+            text = value
+            textSize = 20f
+            contentDescription = description
+            setTextColor(ink)
+            background = pressable(bg, Radius.CONTROL, ink, bordered = true)
+            stateListAnimator = null
+            minWidth = 0
+            minimumWidth = 0
+            minHeight = 0
+            minimumHeight = 0
+            setPadding(0, 0, 0, 0)
+            layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
+            setOnClickListener { onTap() }
+        }
 
     private fun toggle(title: String, key: String, freeToTurnOff: Boolean = false): Switch = Switch(this).apply {
         text = title
-        textSize = 17f
-        setTextColor(p.text)
-        setPadding(0, dp(14), 0, dp(14))
+        textSize = Type.BODY
+        setTextColor(ink)
+        setPadding(0, dp(Space.M), 0, dp(Space.M))
+        minHeight = dp(48)
         isChecked = Prefs.enabled(this@MainActivity, key)
         setOnCheckedChangeListener { view, checked ->
             if (settingSwitch) return@setOnCheckedChangeListener

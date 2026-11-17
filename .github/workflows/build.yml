@@ -31,3 +31,39 @@ jobs:
           tag_name: build-${{ github.run_number }}
           name: Unreel build ${{ github.run_number }}
           files: unreel.apk
+
+  # Runs only when the commit message contains [screenshots].
+  screenshots:
+    needs: build
+    if: contains(github.event.head_commit.message, '[screenshots]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: unreel-apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash scripts/screenshots.sh unreel.apk screenshots
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: screenshots
+          name: Screenshots (latest)
+          prerelease: true
+          make_latest: false
+          files: screenshots/*.png
