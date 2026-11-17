@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Installs the APK on a running emulator, tests blocking against the emulator's own
-# YouTube app, and captures the settings screen in each state.
+# Installs the APK on a running emulator and captures the settings screen in each state.
+# (Blocking itself can't be tested here: the emulator's built-in YouTube is too old for
+# YouTube's servers, and Instagram and TikTok aren't installed.)
 # Usage: scripts/screenshots.sh path/to/app.apk output-dir
 set -u
 APK="$1"
 OUT="$2"
 PKG=app.klid
 SERVICE="$PKG/$PKG.BlockerService"
-YT=com.google.android.youtube
 mkdir -p "$OUT"
 
 adb install -r "$APK"
@@ -41,32 +41,6 @@ tap_on() {
   adb shell input tap $(( ($1 + $3) / 2 )) $(( ($2 + $4) / 2 ))
 }
 scroll_down() { adb shell input swipe 540 1800 540 500 300; sleep 1; }
-# YouTube's Shorts tab: by its label, or by where it sits in the bottom bar.
-tap_shorts() { tap_on "Shorts" || adb shell input tap 324 2270; }
-
-# ---- Does blocking work? Try it on the emulator's YouTube app. ----
-if adb shell pm path "$YT" > /dev/null 2>&1; then
-  adb shell pm grant "$YT" android.permission.POST_NOTIFICATIONS > /dev/null 2>&1
-  service_off
-  adb shell monkey -p "$YT" -c android.intent.category.LAUNCHER 1 > /dev/null 2>&1
-  sleep 20
-  shot yt-1-home
-  dump > "$OUT/yt-home.xml"
-  tap_shorts
-  sleep 12
-  shot yt-2-shorts-with-unreel-off
-  dump > "$OUT/yt-shorts.xml"
-  service_on
-  sleep 8
-  shot yt-3-after-turning-unreel-on
-  tap_shorts
-  sleep 8
-  shot yt-4-shorts-again-with-unreel-on
-  adb logcat -d -s Unreel:I > "$OUT/unreel-log.txt"
-  adb shell input keyevent KEYCODE_HOME
-else
-  echo "YouTube is not installed on this emulator image"
-fi
 
 # ---- The settings screen ----
 for mode in light dark; do

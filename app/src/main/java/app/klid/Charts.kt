@@ -18,6 +18,8 @@ class BarChart(
     private val emptyColor: Int,
     private val labelColor: Int,
     private val strongColor: Int,
+    /** Shown across the chart while every day is zero, so an empty chart doesn't look broken. */
+    private val emptyText: String,
 ) : View(context) {
 
     private var values = IntArray(0)
@@ -74,6 +76,11 @@ class BarChart(
             }
             textPaint.color = if (isToday) strongColor else labelColor
             canvas.drawText(labels[i], cx, height - 2 * density - textPaint.descent(), textPaint)
+        }
+        if (values.all { it == 0 }) {
+            textPaint.color = labelColor
+            val baseline = chartTop + chartHeight / 2f - (textPaint.ascent() + textPaint.descent()) / 2f
+            canvas.drawText(emptyText, width / 2f, baseline, textPaint)
         }
     }
 }

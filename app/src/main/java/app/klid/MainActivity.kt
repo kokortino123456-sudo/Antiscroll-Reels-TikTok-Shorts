@@ -349,7 +349,7 @@ class MainActivity : Activity() {
 
     private fun youtubePage(): Pair<View, () -> Unit> {
         val shorts = switchRow("Shorts", Prefs.YOUTUBE)
-        val stats = chartCard("Shorts closed")
+        val stats = chartCard("Shorts closed", "Nothing closed in the last 7 days")
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(card(surface).apply {
@@ -361,7 +361,7 @@ class MainActivity : Activity() {
             addView(stats.view, spaced(top = Space.L))
         }
         val update = {
-            shorts.detail.text = "Closed ${howOften(Prefs.countToday(this, Prefs.F_YT_SHORTS))} today"
+            shorts.detail.text = todayCount("Closed", Prefs.countToday(this, Prefs.F_YT_SHORTS))
             setChart(stats, Prefs.lastDays(this, Prefs.F_YT_SHORTS), "")
         }
         return page to update
@@ -370,7 +370,7 @@ class MainActivity : Activity() {
     private fun instagramPage(): Pair<View, () -> Unit> {
         val reels = switchRow("Reels", Prefs.INSTAGRAM)
         val home = switchRow("Home feed", Prefs.INSTAGRAM_HOME, freeToTurnOff = true)
-        val stats = chartCard("Times pulled out")
+        val stats = chartCard("Times pulled out", "Nothing in the last 7 days")
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(card(surface).apply {
@@ -384,8 +384,8 @@ class MainActivity : Activity() {
             addView(stats.view, spaced(top = Space.L))
         }
         val update = {
-            reels.detail.text = "Closed ${howOften(Prefs.countToday(this, Prefs.F_IG_REELS))} today"
-            home.detail.text = "Sent to messages ${howOften(Prefs.countToday(this, Prefs.F_IG_HOME))} today"
+            reels.detail.text = todayCount("Closed", Prefs.countToday(this, Prefs.F_IG_REELS))
+            home.detail.text = todayCount("Sent to messages", Prefs.countToday(this, Prefs.F_IG_HOME))
             val a = Prefs.lastDays(this, Prefs.F_IG_REELS)
             val b = Prefs.lastDays(this, Prefs.F_IG_HOME)
             setChart(stats, IntArray(a.size) { a[it] + b[it] }, "")
@@ -415,7 +415,7 @@ class MainActivity : Activity() {
         val usageBar = UsageBar(this, track, accent, alarm).apply {
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
-        val stats = chartCard("Minutes on TikTok")
+        val stats = chartCard("Minutes on TikTok", "No TikTok time in the last 7 days")
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(card(surface).apply {
@@ -435,17 +435,15 @@ class MainActivity : Activity() {
             val on = Prefs.enabled(this, Prefs.TIKTOK)
             val limitMin = Prefs.tiktokLimitMin(this)
             val usedMin = Prefs.tiktokUsedSec(this) / 60
-            limit.detail.text = "Sent you home ${howOften(Prefs.countToday(this, Prefs.F_TT_HOME))} today"
+            limit.detail.text = todayCount("Sent you home", Prefs.countToday(this, Prefs.F_TT_HOME))
             value.text = if (limitMin == 0) "Blocked" else "$limitMin min"
             setEnabledLook(stepperLabel, on)
             setEnabledLook(value, on)
             setEnabledLook(minus, on && limitMin > 0)
             setEnabledLook(plus, on)
-            usageText.text = when {
-                !on -> "No limit. Used $usedMin min today."
-                limitMin == 0 -> "TikTok is blocked completely."
-                else -> "Used $usedMin of $limitMin min today"
-            }
+            // With the limit at zero the stepper already says "Blocked", so say nothing more.
+            usageText.visibility = if (on && limitMin == 0) View.GONE else View.VISIBLE
+            usageText.text = if (!on) "No limit. Used $usedMin min today." else "Used $usedMin of $limitMin min today"
             usageBar.visibility = if (on && limitMin > 0) View.VISIBLE else View.GONE
             usageBar.fraction = if (limitMin > 0) usedMin.toFloat() / limitMin else 0f
             setChart(stats, Prefs.lastDays(this, Prefs.F_TT_SECONDS).map { it / 60 }.toIntArray(), " min")
@@ -488,9 +486,9 @@ class MainActivity : Activity() {
         return null
     }
 
-    private fun chartCard(title: String): ChartCard {
+    private fun chartCard(title: String, emptyText: String): ChartCard {
         val caption = label("", Type.CAPTION, sub).apply { tabular() }
-        val chart = BarChart(this, accent, withAlpha(accent, 0.45f), withAlpha(sub, 0.25f), sub, ink)
+        val chart = BarChart(this, accent, withAlpha(accent, 0.45f), withAlpha(sub, 0.25f), sub, ink, emptyText)
         val view = card(surface).apply {
             addView(label(title, Type.SECTION, ink, bold = true).apply { heading() })
             addView(caption)
@@ -503,7 +501,8 @@ class MainActivity : Activity() {
 
     private fun setChart(target: ChartCard, values: IntArray, unit: String) {
         target.chart.setData(values, dayLabels())
-        target.caption.text = "Last 7 days, ${values.sum()}$unit in total"
+        val total = values.sum()
+        target.caption.text = if (total == 0) "Last 7 days" else "Last 7 days, $total$unit in total"
     }
 
     private fun dayLabels(): Array<String> {
@@ -695,6 +694,10 @@ class MainActivity : Activity() {
     // ---- Words ----
 
     private fun howOften(n: Int): String = if (n == 1) "once" else "$n times"
+
+    /** "Closed 3 times today", or a plain line instead of "0 times". */
+    private fun todayCount(done: String, n: Int): String =
+        if (n == 0) "Not needed yet today" else "$done ${howOften(n)} today"
 
     private fun naturalJoin(items: List<String>): String = when (items.size) {
         0 -> ""
