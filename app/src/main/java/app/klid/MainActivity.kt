@@ -32,7 +32,7 @@ import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 
-/** Spacing, radius and type tokens. Colours live in res/values*/colors.xml. */
+/** Spacing, radius and type tokens. Colours live in the colors.xml resources (light and night). */
 private object Space {
     const val XS = 4
     const val S = 8
