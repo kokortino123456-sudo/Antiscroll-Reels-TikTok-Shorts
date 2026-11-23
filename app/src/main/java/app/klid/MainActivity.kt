@@ -295,7 +295,7 @@ class MainActivity : Activity() {
         if (color != shownStatusColor) {
             shownStatusColor = color
             (statusDot.background as GradientDrawable).setColor(color)
-            // Lime for the main action; a quiet raised button while paused.
+            // The accent for the main action; a quiet raised button while paused.
             val primary = color != getColor(R.color.status_paused)
             statusButton.background = if (primary) pressable(accent, Radius.CONTROL, onAccent, bordered = false)
             else pressable(raised, Radius.CONTROL, ink, bordered = true)

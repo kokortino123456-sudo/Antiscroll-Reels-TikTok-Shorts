@@ -12,9 +12,9 @@
     <color name="text">#ECEFF4</color>
     <color name="text_secondary">#B1B9C4</color>
     <color name="text_muted">#868E9B</color>
-    <color name="accent">#C6FF3D</color>           <!-- lime -->
-    <color name="on_accent">#111400</color>        <!-- text on lime -->
-    <color name="status_on">#C6FF3D</color>
+    <color name="accent">#64A7D6</color>           <!-- darker baby blue -->
+    <color name="on_accent">#08141F</color>        <!-- text on the accent, 7.1:1 -->
+    <color name="status_on">#64A7D6</color>
     <color name="status_paused">#EC835A</color>
     <color name="status_off">#FF6B6B</color>
 </resources>
