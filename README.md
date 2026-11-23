@@ -53,3 +53,7 @@ the id lists in that file are the place to fix.
 Every push to `main` builds the APK with GitHub Actions and publishes it as a release.
 Builds are signed with the `debug.keystore` in this repo so each one installs over the last.
 That key is public, so only install APKs from this repo's releases.
+
+## Credits
+
+Type: [Barlow](https://github.com/jpt/barlow) by Jeremy Tribby, SIL Open Font License. The look follows MacroBro.

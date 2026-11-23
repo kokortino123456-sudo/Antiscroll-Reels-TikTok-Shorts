@@ -13,6 +13,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
+import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.RippleDrawable
 import android.net.Uri
 import android.os.Build
@@ -41,7 +42,7 @@ import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 
-/** Spacing, radius and type tokens. Colours live in the colors.xml resources (light and night). */
+/** Spacing, radius and type tokens, shared with MacroBro. Colours live in res/values/colors.xml. */
 private object Space {
     const val XS = 4
     const val S = 8
@@ -106,11 +107,23 @@ class MainActivity : Activity() {
     private var ink = 0
     private var sub = 0
     private var accent = 0
-    private var onStatus = 0
+    private var raised = 0
+    private var pressed = 0
+    private var borderTop = 0
+    private var borderBottom = 0
+    private var muted = 0
+    private var onAccent = 0
     private var alarm = 0
+
+    // Barlow, the same type as MacroBro.
+    private lateinit var fontRegular: Typeface
+    private lateinit var fontMedium: Typeface
+    private lateinit var fontSemi: Typeface
+    private lateinit var fontBold: Typeface
 
     private lateinit var todayLine: TextView
     private lateinit var statusCard: LinearLayout
+    private lateinit var statusDot: View
     private lateinit var statusTitle: TextView
     private lateinit var statusDetail: TextView
     private lateinit var statusButton: Button
@@ -137,25 +150,25 @@ class MainActivity : Activity() {
         ink = getColor(R.color.text)
         sub = getColor(R.color.text_secondary)
         accent = getColor(R.color.accent)
-        onStatus = getColor(R.color.on_status)
+        raised = getColor(R.color.surface_raised)
+        pressed = getColor(R.color.surface_pressed)
+        borderTop = getColor(R.color.border_top)
+        borderBottom = getColor(R.color.border_bottom)
+        muted = getColor(R.color.text_muted)
+        onAccent = getColor(R.color.on_accent)
         alarm = getColor(R.color.status_off)
+        fontRegular = resources.getFont(R.font.barlow_regular)
+        fontMedium = resources.getFont(R.font.barlow_medium)
+        fontSemi = resources.getFont(R.font.barlow_semibold)
+        fontBold = resources.getFont(R.font.barlow_bold)
 
-        val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-            Configuration.UI_MODE_NIGHT_YES
-        window.statusBarColor = bg
-        window.navigationBarColor = bg
-        if (!night) {
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility =
-                View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-        }
 
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(Space.L), dp(Space.XL), dp(Space.L), dp(Space.XXL))
         }
-        column.addView(label("Unreel", Type.TITLE, ink, bold = true).apply {
-            letterSpacing = -0.02f
+        column.addView(label("Unreel", Type.TITLE, ink).apply {
+            typeface = fontBold
             heading()
         })
         todayLine = label("", Type.BODY, sub).apply { tabular() }
@@ -165,7 +178,7 @@ class MainActivity : Activity() {
         // One tab per app, as a segmented control above that app's page.
         val tabBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            background = rounded(track, Radius.TRACK, bordered = false)
+            background = cardBackground(surface, Radius.TRACK)
             val pad = dp(Radius.TRACK_PAD)
             setPadding(pad, pad, pad, pad)
         }
@@ -218,15 +231,25 @@ class MainActivity : Activity() {
     // ---- Status, shared by all tabs ----
 
     private fun statusCardView(): View {
-        statusTitle = label("", Type.STATUS, onStatus, bold = true).apply { tabular() }
-        statusDetail = label("", Type.SMALL, onStatus).apply { setPadding(0, dp(Space.XS), 0, 0) }
+        statusTitle = label("", Type.STATUS, ink, bold = true).apply { tabular() }
+        statusDot = View(this).apply {
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL }
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        val titleRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(statusDot, LinearLayout.LayoutParams(dp(10), dp(10)).apply { rightMargin = dp(Space.S) })
+            addView(statusTitle)
+        }
+        statusDetail = label("", Type.SMALL, sub).apply { setPadding(0, dp(Space.XS), 0, 0) }
         statusButton = button("").apply { setOnClickListener { onStatusButton() } }
-        statusCaption = label("", Type.CAPTION, onStatus).apply {
+        statusCaption = label("", Type.CAPTION, muted).apply {
             setPadding(0, dp(Space.S), 0, 0)
             tabular()
         }
-        statusCard = card(0, bordered = false).apply {
-            addView(statusTitle)
+        statusCard = card(surface).apply {
+            addView(titleRow)
             addView(statusDetail)
             addView(statusButton, spaced(top = Space.L))
             addView(statusCaption)
@@ -271,9 +294,12 @@ class MainActivity : Activity() {
         }
         if (color != shownStatusColor) {
             shownStatusColor = color
-            (statusCard.background as GradientDrawable).setColor(color)
-            statusButton.background = pressable(onStatus, Radius.CONTROL, color, bordered = false)
-            statusButton.setTextColor(color)
+            (statusDot.background as GradientDrawable).setColor(color)
+            // Lime for the main action; a quiet raised button while paused.
+            val primary = color != getColor(R.color.status_paused)
+            statusButton.background = if (primary) pressable(accent, Radius.CONTROL, onAccent, bordered = false)
+            else pressable(raised, Radius.CONTROL, ink, bordered = true)
+            statusButton.setTextColor(if (primary) onAccent else ink)
         }
 
         val total = Prefs.pullOutsToday(this)
@@ -331,8 +357,8 @@ class MainActivity : Activity() {
             val selected = t.tab == tab
             t.button.isSelected = selected
             t.button.setTextColor(if (selected) ink else sub)
-            t.button.setTypeface(Typeface.DEFAULT, if (selected) Typeface.BOLD else Typeface.NORMAL)
-            t.button.background = if (selected) rounded(surface, Radius.CONTROL, bordered = true)
+            t.button.typeface = if (selected) fontSemi else fontMedium
+            t.button.background = if (selected) rounded(pressed, Radius.CONTROL, bordered = false)
             else pressable(Color.TRANSPARENT, Radius.CONTROL, ink, bordered = false)
             if (selected) {
                 val wasHidden = t.page.visibility != View.VISIBLE
@@ -488,7 +514,8 @@ class MainActivity : Activity() {
 
     private fun chartCard(title: String, emptyText: String): ChartCard {
         val caption = label("", Type.CAPTION, sub).apply { tabular() }
-        val chart = BarChart(this, accent, withAlpha(accent, 0.45f), withAlpha(sub, 0.25f), sub, ink, emptyText)
+        val chart = BarChart(this, accent, withAlpha(accent, 0.35f), withAlpha(muted, 0.3f), muted, ink, emptyText)
+        chart.useTypeface(fontMedium)
         val view = card(surface).apply {
             addView(label(title, Type.SECTION, ink, bold = true).apply { heading() })
             addView(caption)
@@ -608,7 +635,7 @@ class MainActivity : Activity() {
             inputType = InputType.TYPE_CLASS_TEXT or
                 InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
                 InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            typeface = Typeface.DEFAULT
+            typeface = fontRegular
             minLines = 4
             gravity = Gravity.TOP
             hint = "Type it here, word for word"
@@ -682,7 +709,7 @@ class MainActivity : Activity() {
     /** Match the cards: same surface colour, radius and border instead of the platform default. */
     private fun dialogLook(dialog: AlertDialog) {
         dialog.window?.setBackgroundDrawable(
-            InsetDrawable(rounded(surface, Radius.CARD, bordered = true), dp(Space.L))
+            InsetDrawable(cardBackground(raised, Radius.CARD), dp(Space.L))
         )
     }
 
@@ -735,9 +762,22 @@ class MainActivity : Activity() {
         view.alpha = if (enabled) 1f else 0.38f
     }
 
+    /** MacroBro's card: a fill inside a 1dp edge that is brighter at the top, as if lit from above. */
+    private fun cardBackground(fill: Int, radius: Int): Drawable {
+        val r = dp(radius).toFloat()
+        val w = dp(1).coerceAtLeast(1)
+        val edge = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(borderTop, borderBottom))
+            .apply { cornerRadius = r }
+        val body = GradientDrawable().apply {
+            setColor(fill)
+            cornerRadius = r - w
+        }
+        return LayerDrawable(arrayOf<Drawable>(edge, body)).apply { setLayerInset(1, w, w, w, w) }
+    }
+
     private fun card(color: Int, bordered: Boolean = true): LinearLayout = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        background = rounded(color, Radius.CARD, bordered)
+        background = if (bordered) cardBackground(color, Radius.CARD) else rounded(color, Radius.CARD, false)
         val pad = dp(Radius.CARD_PAD)
         setPadding(pad, pad, pad, pad)
     }
@@ -751,7 +791,7 @@ class MainActivity : Activity() {
             text = value
             textSize = size
             setTextColor(color)
-            if (bold) setTypeface(typeface, Typeface.BOLD)
+            typeface = if (bold) fontSemi else fontRegular
         }
 
     private fun TextView.tabular() {
@@ -766,7 +806,7 @@ class MainActivity : Activity() {
         text = value
         textSize = Type.BODY
         isAllCaps = false
-        setTypeface(typeface, Typeface.BOLD)
+        typeface = fontSemi
         stateListAnimator = null
         minHeight = dp(52)
     }
@@ -789,7 +829,8 @@ class MainActivity : Activity() {
             textSize = 20f
             contentDescription = description
             setTextColor(ink)
-            background = pressable(bg, Radius.CONTROL, ink, bordered = true)
+            typeface = fontMedium
+            background = pressable(raised, Radius.CONTROL, ink, bordered = true)
             stateListAnimator = null
             minWidth = 0
             minimumWidth = 0
@@ -816,6 +857,7 @@ class MainActivity : Activity() {
     private fun toggle(title: String, key: String, freeToTurnOff: Boolean): Switch = Switch(this).apply {
         text = title
         textSize = Type.BODY
+        typeface = fontMedium
         setTextColor(ink)
         setPadding(0, dp(Space.M), 0, dp(Space.XS))
         minHeight = dp(48)

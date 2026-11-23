@@ -1,15 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Colour tokens. Dark values live in values-night/colors.xml. -->
+<!-- Colour tokens, shared with MacroBro. Dark only: the higher a surface sits, the lighter it is. -->
 <resources>
-    <color name="background">#F4F1EA</color>
-    <color name="surface">#FFFFFF</color>
-    <color name="border">#14000000</color>          <!-- 8% black: works on any surface -->
-    <color name="track">#0F000000</color>           <!-- recessed tab bar and progress track -->
-    <color name="text">#1C1B1A</color>
-    <color name="text_secondary">#5F5C57</color>    <!-- 5.2:1 on the tab track, 6.7:1 on surface -->
-    <color name="accent">#1F6F5C</color>
-    <color name="status_on">#1F6F5C</color>
-    <color name="status_paused">#8F5B0A</color>     <!-- 5.7:1 with white; was 3.6:1 -->
-    <color name="status_off">#B03A2E</color>
-    <color name="on_status">#FFFFFF</color>
+    <color name="background">#0F1115</color>       <!-- page -->
+    <color name="surface">#1A1D23</color>          <!-- cards -->
+    <color name="surface_raised">#232731</color>   <!-- dialogs, step buttons -->
+    <color name="surface_pressed">#2C313C</color>  <!-- selected tab -->
+    <color name="track">#2A2F39</color>            <!-- progress track, hairlines -->
+    <color name="border">#14FFFFFF</color>         <!-- 8% white -->
+    <color name="border_top">#1AFFFFFF</color>     <!-- card edge, lit from above -->
+    <color name="border_bottom">#08FFFFFF</color>
+    <color name="text">#ECEFF4</color>
+    <color name="text_secondary">#B1B9C4</color>
+    <color name="text_muted">#868E9B</color>
+    <color name="accent">#C6FF3D</color>           <!-- lime -->
+    <color name="on_accent">#111400</color>        <!-- text on lime -->
+    <color name="status_on">#C6FF3D</color>
+    <color name="status_paused">#EC835A</color>
+    <color name="status_off">#FF6B6B</color>
 </resources>

@@ -34,6 +34,11 @@ class BarChart(
     private val rect = RectF()
     private val path = Path()
 
+    fun useTypeface(typeface: android.graphics.Typeface) {
+        textPaint.typeface = typeface
+        invalidate()
+    }
+
     fun setData(newValues: IntArray, newLabels: Array<String>) {
         if (newValues.contentEquals(values) && newLabels.contentEquals(labels)) return
         values = newValues.copyOf()

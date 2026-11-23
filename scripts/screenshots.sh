@@ -43,15 +43,15 @@ tap_on() {
 scroll_down() { adb shell input swipe 540 1800 540 500 300; sleep 1; }
 
 # ---- The settings screen ----
-for mode in light dark; do
+for mode in dark; do
   if [ "$mode" = dark ]; then adb shell cmd uimode night yes; else adb shell cmd uimode night no; fi
   sleep 2
 
   service_off
   launch
   shot "$mode-01-off"
-  if [ "$mode" = light ]; then
-    tap_on "Turn on in Accessibility settings" && shot "light-02-before-turning-on"
+  if true; then
+    tap_on "Turn on in Accessibility settings" && shot "$mode-02-before-turning-on"
     adb shell input keyevent KEYCODE_BACK
   fi
 
@@ -83,7 +83,7 @@ adb shell cmd uimode night no
 adb shell wm size 1600x2560
 adb shell wm density 320
 launch
-shot "light-10-tablet"
+shot "tablet"
 adb shell wm size reset
 adb shell wm density reset
 ls -la "$OUT"
